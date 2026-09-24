@@ -164,11 +164,12 @@ if corr.get('success'):
         st.warning("Positive sentiment precedes negative returns — the market may over-price optimism.")
     else:
         st.info("No strong relationship detected yet — analyse more transcripts.")
-
     current_ticker = st.session_state.get('ticker')
-    current_date = st.session_state.get('call_date')
+    current_date   = st.session_state.get('call_date')
 
-    fig = plot_correlation(corr['data'],highlight_ticker = current_ticker,highlight_date = current_date)
+    fig = plot_correlation(corr['data'],highlight_ticker = current_ticker,highlight_date   = current_date
+)
+    fig = plot_correlation(corr['data'])
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.pyplot(fig, use_container_width=False)
