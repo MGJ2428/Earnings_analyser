@@ -9,7 +9,8 @@ from datetime import datetime, timedelta
 import re
 from adjustText import adjust_text
 
-data_path= '/Users/mayankjagadish/Desktop/Earnings_analyser/data/correlation_data.csv'
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+data_path = os.path.join(BASE_DIR, 'data', 'correlation_data.csv')
 field_names = ['ticker', 'date', 'sentiment_score', 'd1_return', 'd3_return','verdict']
 
 def extract_date_from_url(url: str) -> str | None:
@@ -57,7 +58,6 @@ def get_post_earnings_return(ticker: str, call_date: str) -> dict:
         return {'success': False, 'error': str(e)}
 
 def store_results(tcker:str, date:str, sentiment_score:float, d1_return: float, d3_return: float, verdict:str) -> None:
-    data_path= '/Users/mayankjagadish/Desktop/Earnings_analyser/data/correlation_data.csv'
     file_exists = os.path.exists(data_path) and os.path.getsize(data_path) > 0
     if file_exists:
         current_data=pd.read_csv(data_path)
@@ -83,11 +83,7 @@ def calculate_correlations() -> dict:
     df = df.drop_duplicates(subset=['ticker', 'date'])
 
     if len(df) < 5:
-        return {
-            'success': False,
-            'error':   f'Need at least 5 data points — have only {len(df)} so far',
-            'n':       len(df)
-        }
+        return {'success': False,'error':   f'Need at least 5 data points — have only {len(df)} so far','n':len(df)}
     r, p_value = stats.pearsonr(df['sentiment_score'], df['d3_return'])
 
     beat_r = beat_n = miss_r = miss_n = None
@@ -97,25 +93,15 @@ def calculate_correlations() -> dict:
         misses = df[df['verdict'] == 'MISS'].dropna(subset=['sentiment_score', 'd3_return'])
         if len(beats) >= 3:
             beat_r, _ = stats.pearsonr(beats['sentiment_score'], beats['d3_return'])
-            beat_r    = round(beat_r, 2)
-            beat_n    = len(beats)
+            beat_r = round(beat_r, 2)
+            beat_n = len(beats)
         if len(misses) >= 3:
             miss_r, _ = stats.pearsonr(misses['sentiment_score'], misses['d3_return'])
-            miss_r    = round(miss_r, 2)
-            miss_n    = len(misses)
+            miss_r = round(miss_r, 2)
+            miss_n = len(misses)
 
     return {
-        'success':     True,
-        'r':           round(r, 2),
-        'p_value':     round(p_value, 3),
-        'n':           len(df),
-        'significant': p_value < 0.05,
-        'beat_r':      beat_r,
-        'beat_n':      beat_n,
-        'miss_r':      miss_r,
-        'miss_n':      miss_n,
-        'data':        df.to_dict('records')
-    }
+        'success':True,'r': round(r, 2), 'p_value':round(p_value, 3), 'n': len(df), 'significant': p_value < 0.05, 'beat_r': beat_r, 'beat_n': beat_n, 'miss_r': miss_r, 'miss_n': miss_n, 'data':df.to_dict('records')}
 
 def plot_correlation(data: list, highlight_ticker: str = None, highlight_date: str = None) -> plt.Figure:
     df = pd.DataFrame(data)
@@ -124,11 +110,7 @@ def plot_correlation(data: list, highlight_ticker: str = None, highlight_date: s
     texts = []
 
     for ignore, row in df.iterrows():
-        is_highlight = (
-            highlight_ticker and highlight_date and
-            row['ticker'] == highlight_ticker and
-            row['date'] == highlight_date
-        )
+        is_highlight = (highlight_ticker and highlight_date and row['ticker'] == highlight_ticker and row['date'] == highlight_date)
 
         colour = '#1baf7a' if row.get('verdict') == 'BEAT' else '#e34948' if row.get('verdict') == 'MISS' else '#2A78D6'
 
@@ -136,10 +118,12 @@ def plot_correlation(data: list, highlight_ticker: str = None, highlight_date: s
             ax.scatter(row['sentiment_score'], row['d3_return'],color=colour, s=400, alpha=0.15, edgecolors='none', zorder=4)
             ax.scatter(row['sentiment_score'], row['d3_return'],color=colour, s=200, alpha=0.25, edgecolors='none', zorder=4)
             ax.scatter(row['sentiment_score'], row['d3_return'],color=colour, s=120, alpha=1.0,edgecolors='white', linewidths=2.5, zorder=5)
-            ax.annotate(f"{row['ticker']} < current",(row['sentiment_score'], row['d3_return']),textcoords="offset points",xytext=(10, 5), fontsize=8,color=colour, fontweight='bold')
+            t=ax.annotate(f"{row['ticker']} < current",(row['sentiment_score'], row['d3_return']),textcoords="offset points",xytext=(10, 5), fontsize=8,color=colour, fontweight='bold')
+            texts.append(t)
         else:
             ax.scatter(row['sentiment_score'], row['d3_return'],color=colour, s=90, alpha=0.7,edgecolors='white', linewidths=1.5, zorder=3)
-            ax.annotate(row['ticker'],(row['sentiment_score'], row['d3_return']),textcoords="offset points",xytext=(6, 4), fontsize=8, color='#6B7A99')
+            t=ax.annotate(row['ticker'],(row['sentiment_score'], row['d3_return']),textcoords="offset points",xytext=(6, 4), fontsize=8, color='#6B7A99')
+            texts.append(t)
     adjust_text(texts,arrowprops=dict(arrowstyle='-', color='#3A4A66', lw=0.5))
     if len(df) >= 3:
         z = np.polyfit(df['sentiment_score'], df['d3_return'], 1)
@@ -147,7 +131,7 @@ def plot_correlation(data: list, highlight_ticker: str = None, highlight_date: s
         x_line = np.linspace(df['sentiment_score'].min(),df['sentiment_score'].max(), 100)
         ax.plot(x_line, p(x_line), color='#6B7A99',linestyle='--', linewidth=1.5)
 
-    ax.axhline(y=0, color='#3A4A66', linewidth=0.8)
+    ax.axhline(y=0,color='#3A4A66', linewidth=0.8)
     ax.axvline(x=0, color='#3A4A66', linewidth=0.8)
     ax.set_xlabel('FinBERT Sentiment Score', fontsize=11)
     ax.set_ylabel('3-Day Post-Earnings Return (%)', fontsize=11)

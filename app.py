@@ -10,15 +10,8 @@ st.set_page_config(page_title="Earnings Analyser", layout='wide')
 def load_finbert():
     os.environ['TRANSFORMERS_VERBOSITY'] = 'error'
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
-    os.environ['HF_HOME'] = '/Users/mayankjagadish/Desktop/Earnings_analyser/.hf_cache'
-    from transformers import pipeline
-    return pipeline(
-        "sentiment-analysis",
-        model="ProsusAI/finbert",
-        tokenizer="ProsusAI/finbert",
-        max_length=512,
-        truncation=True
-    )
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    os.environ['HF_HOME'] = os.path.join(base_dir, '.hf_cache')
 
 finbert = load_finbert()
 

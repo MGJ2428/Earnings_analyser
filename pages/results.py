@@ -12,9 +12,9 @@ if 'nlp_results' not in st.session_state:
     st.stop()
 
 nlp_results = st.session_state['nlp_results']
-earnings    = st.session_state.get('earnings')
-ticker      = st.session_state.get('ticker')
-source_url  = st.session_state.get('source_url')
+earnings = st.session_state.get('earnings')
+ticker = st.session_state.get('ticker')
+source_url = st.session_state.get('source_url')
 
 st.title('Analysis of Report')
 
@@ -33,11 +33,7 @@ if earnings and earnings.get('success'):
     st.caption(f"EPS source: {earnings.get('source', 'unknown')}   Quarter: {earnings.get('quarter', '')}")
     col1, col2, col3 = st.columns(3)
     col1.metric("Analyst Estimate",  f"${earnings.get('estimated_eps', 'N/A')}")
-    col2.metric(
-        "Actual EPS",
-        f"${earnings.get('actual_eps', 'N/A')}",
-        f"{earnings.get('surprise', 0)}%"
-    )
+    col2.metric("Actual EPS",f"${earnings.get('actual_eps', 'N/A')}",f"{earnings.get('surprise', 0)}%")
     verdict = earnings.get('verdict', '')
     if verdict == 'BEAT':
         col3.success(f"✅ BEAT by ${earnings.get('difference', '')}")
@@ -57,7 +53,7 @@ sentiment = st.session_state.get('nlp_results', {}).get('sentiment')
 
 if sentiment:
     overall = sentiment['overall'].get('overall','0.0')
-    label   = sentiment['overall'].get('label', 'neutral')
+    label = sentiment['overall'].get('label', 'neutral')
 
     if overall > 0.1:
         st.success(f"Overall tone: **Positive** ({overall:+.2f})")
@@ -94,7 +90,7 @@ if sentiment:
                             """, unsafe_allow_html=True)
 
     if managment:
-        mgmt_avg    = sum(v['overall'] for v in managment.values()) / len(managment)
+        mgmt_avg = sum(v['overall'] for v in managment.values()) / len(managment)
         st.info(f"Management tone {mgmt_avg:+.2f}")
 else:
     st.info("Sentiment data not available.")
@@ -117,7 +113,7 @@ else:
 st.divider()
 
 st.subheader("Forward Guidance")
-key_sentences = st.session_state.get('nlp_results', {}).get('key_sentences', [])
+key_sentences = st.session_state.get('nlp_results',{}).get('key_sentences',[])
 if key_sentences:
     for sentence in key_sentences:
         with st.container(border=True):
@@ -165,11 +161,9 @@ if corr.get('success'):
     else:
         st.info("No strong relationship detected yet — analyse more transcripts.")
     current_ticker = st.session_state.get('ticker')
-    current_date   = st.session_state.get('call_date')
+    current_date = st.session_state.get('call_date')
 
-    fig = plot_correlation(corr['data'],highlight_ticker = current_ticker,highlight_date   = current_date
-)
-    fig = plot_correlation(corr['data'])
+    fig = plot_correlation(corr['data'],highlight_ticker = current_ticker,highlight_date = current_date)
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.pyplot(fig, use_container_width=False)
@@ -192,11 +186,9 @@ if past:
     colours = ['#1baf7a' if b else '#e34948' for b in beats]
 
     fig, ax = plt.subplots(figsize=(7, 4))
-    ax.plot(quarters, estimates, color='#2a78d6', linestyle='--',
-            marker='s', markersize=7, label='Analyst estimate')
+    ax.plot(quarters, estimates, color='#2a78d6', linestyle='--',marker='s', markersize=7, label='Analyst estimate')
     for q, actual, colour in zip(quarters, actuals, colours):
-        ax.scatter(q, actual, color=colour, s=120, zorder=5,
-                   edgecolors='white', linewidths=1.5)
+        ax.scatter(q, actual, color=colour, s=120, zorder=5,edgecolors='white', linewidths=1.5)
     ax.set_ylabel('EPS ($)', fontsize=12)
     ax.set_xlabel('Quarter', fontsize=12)
     ax.tick_params(axis='x', rotation=45)
@@ -207,7 +199,7 @@ if past:
     ax.spines['right'].set_visible(False)
     beat_patch = mpatches.Patch(color='#1baf7a', label='Beat')
     miss_patch = mpatches.Patch(color='#e34948', label='Miss')
-    est_patch  = mpatches.Patch(color='#2a78d6', label='Analyst estimate')
+    est_patch = mpatches.Patch(color='#2a78d6', label='Analyst estimate')
     ax.legend(handles=[beat_patch, miss_patch, est_patch], loc='upper left')
     plt.tight_layout()
     col1, col2, col3 = st.columns([1, 2, 1])
