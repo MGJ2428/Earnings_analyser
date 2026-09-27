@@ -4,6 +4,9 @@ from pipeline.runner import run_pipeline_subprocess
 from pipeline.validation import validate_url
 from pipeline.sentiment import analyse_transcript_sentiment
 from pipeline.correlation import extract_date_from_url, get_post_earnings_return, store_results, calculate_correlations
+from pipeline.nlp import process_text
+from pipeline.predicted_earnings_checker import run_earnings_analysis
+
 st.set_page_config(page_title="Earnings Analyser", layout='wide')
 
 @st.cache_resource(show_spinner="Loading FinBERT... (first time only, ~2 minutes)")
@@ -47,16 +50,14 @@ with col_left:
                 with st.spinner("Fetching and analysing... (this may take 30 seconds)"):
                     result = run_pipeline_subprocess(url)
                 if not result['success']:
-                    st.error(result.get('error'))
-                    st.code(result.get('stderr', ''))
-                    st.write("returncode:", result.get('returncode'))
-                if not result['success']:
                     if result.get('needs_ticker'):
                         st.session_state['needs_ticker'] = True
                         st.session_state['raw_text'] = result.get('raw_text', '')
                         st.session_state['source_url'] = url
                     else:
                         st.error(result.get('error', 'Something went wrong'))
+                        st.code(result.get('stderr', ''))
+                        st.write("returncode:", result.get('returncode'))
                 else:
                     with st.spinner("Running sentiment analysis..."):
                         sentiment = analyse_transcript_sentiment(
@@ -72,16 +73,14 @@ with col_left:
                         'entities':result.get('entities', []),
                         'past_earnings':result.get('past_earnings'),
                         'sentences':result.get('sentences', []),
-                        'topics': result.get('topics', [])
-                    }
+                        'topics': result.get('topics', [])}
+                    
                     with st.spinner('Calculating post_earnings return ...'):
                         call_date=extract_date_from_url(url)
                         st.session_state['call_date'] = call_date
                         if call_date and result['ticker']:
                             returns=get_post_earnings_return(result['ticker'], call_date)
-                            print(f"DEBUG returns: {returns}")
                             if returns['success']:
-                                print(f"DEBUG about to store: ticker={result['ticker']}, date={call_date}, verdict={result.get('earnings', {}).get('verdict', 'UNKNOWN')}")
                                 store_results(tcker=result['ticker'],date=call_date, sentiment_score=sentiment.get('overall', {}).get('overall', 0.0), d1_return=returns['d1_return'], d3_return=returns['d3_return'],verdict=result.get('earnings', {}).get('verdict', 'UNKNOWN'))
 
                     st.session_state['ticker'] = result['ticker']
@@ -106,9 +105,11 @@ with col_left:
                 st.write('')
                 if st.button('Confirm', disabled=not manual_ticker):
                     with st.spinner(f'Checking earnings for {manual_ticker}...'):
-                        result = run_pipeline_subprocess(st.session_state['source_url'])
+                        raw_text = st.session_state.get('raw_text', '')
+                        nlp_results = process_text(raw_text)
+                        earnings = run_earnings_analysis(manual_ticker, nlp_results['doc'])
                     st.session_state['ticker'] = manual_ticker
-                    st.session_state['earnings'] = result.get('earnings')
+                    st.session_state['earnings'] = earnings
                     st.session_state['needs_ticker'] = False
                     st.switch_page('pages/results.py')
     st.markdown("""

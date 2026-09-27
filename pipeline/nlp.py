@@ -46,9 +46,7 @@ def extract_eps_from_text(doc) -> float | None:
         r'\$?\s*([-]?[\d]+\.[\d]+)'
         r'|'
         r'\$\s*([-]?[\d]+\.[\d]+)\s*(?:per share|basic|diluted|eps)'
-        r')',
-        re.IGNORECASE
-    )
+        r')',re.IGNORECASE)
 
     for sent in doc.sents:
         sent_lower = sent.text.lower()

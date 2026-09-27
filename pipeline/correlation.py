@@ -118,13 +118,13 @@ def plot_correlation(data: list, highlight_ticker: str = None, highlight_date: s
             ax.scatter(row['sentiment_score'], row['d3_return'],color=colour, s=400, alpha=0.15, edgecolors='none', zorder=4)
             ax.scatter(row['sentiment_score'], row['d3_return'],color=colour, s=200, alpha=0.25, edgecolors='none', zorder=4)
             ax.scatter(row['sentiment_score'], row['d3_return'],color=colour, s=120, alpha=1.0,edgecolors='white', linewidths=2.5, zorder=5)
-            t=ax.annotate(f"{row['ticker']} < current",(row['sentiment_score'], row['d3_return']),textcoords="offset points",xytext=(10, 5), fontsize=8,color=colour, fontweight='bold')
+            t=ax.annotate(f"{row['ticker']} (current)",(row['sentiment_score'], row['d3_return']),textcoords="offset points",xytext=(10, 5), fontsize=8,color=colour, fontweight='bold')
             texts.append(t)
         else:
             ax.scatter(row['sentiment_score'], row['d3_return'],color=colour, s=90, alpha=0.7,edgecolors='white', linewidths=1.5, zorder=3)
-            t=ax.annotate(row['ticker'],(row['sentiment_score'], row['d3_return']),textcoords="offset points",xytext=(6, 4), fontsize=8, color='#6B7A99')
-            texts.append(t)
-    adjust_text(texts,arrowprops=dict(arrowstyle='-', color='#3A4A66', lw=0.5))
+            
+    if texts:
+        adjust_text(texts,arrowprops=dict(arrowstyle='-', color='#3A4A66', lw=0.5))
     if len(df) >= 3:
         z = np.polyfit(df['sentiment_score'], df['d3_return'], 1)
         p = np.poly1d(z)

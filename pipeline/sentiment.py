@@ -22,15 +22,12 @@ def score_sentences(sentences: list, finbert) -> list[dict]:
 
 def aggregate_sentiment(results: list[dict]) -> dict:
     if not results:
-        return {
-            'positive': 0.0, 'negative': 0.0, 'neutral': 0.0,
-            'overall': 0.0, 'label': 'neutral', 'sentence_count': 0
-        }
+        return {'positive': 0.0, 'negative': 0.0, 'neutral': 0.0,'overall': 0.0, 'label': 'neutral', 'sentence_count': 0}
     counts = {'positive': 0, 'negative': 0, 'neutral': 0}
     for r in results:
         counts[r['label'].lower()] += 1
-    total  = len(results)
-    pos_prop  = round(counts['positive'] / total, 2)
+    total = len(results)
+    pos_prop = round(counts['positive'] / total, 2)
     neg_prop = round(counts['negative'] / total, 2)
     neu_prop = round(counts['neutral']  / total, 2)
     overall_score = round(pos_prop - neg_prop, 2)
@@ -40,20 +37,13 @@ def aggregate_sentiment(results: list[dict]) -> dict:
         label = 'negative'
     else:
         label = 'neutral'
-    return {
-        'positive':pos_prop,
-        'negative':neg_prop,
-        'neutral': neu_prop,
-        'overall':overall_score,
-        'label':label,
-        'sentence_count': total
-    }
+    return {'positive':pos_prop,'negative':neg_prop,'neutral': neu_prop,'overall':overall_score,'label':label,'sentence_count': total}
 
 
 def segment_transcript(text: str, sentences: list) -> dict:
     full_text_lower = text.lower()
     qa_marks = ['question and answer', 'q&a', 'open the call', 'open for questions', 'first question']
-    cfo_ids  = ['chief financial officer', 'cfo', 'our cfo', 'financial results', 'turning to our financials']
+    cfo_ids = ['chief financial officer', 'cfo', 'our cfo', 'financial results', 'turning to our financials']
     pos_of_qs = len(text)
     for marker in qa_marks:
         pos = full_text_lower.find(marker)
@@ -67,7 +57,7 @@ def segment_transcript(text: str, sentences: list) -> dict:
             break
     ceo_sentences = []
     cfo_sentences = []
-    qa_sentences  = []
+    qa_sentences = []
     current_pos = 0
     for sent in sentences:
         sent_pos = text.find(sent, current_pos)
@@ -99,7 +89,7 @@ def segment_by_speaker(text: str, sentences: list) -> dict:
     participants = {}
     for match in participant_pattern.finditer(text[:3000]):
         title = match.group(1).strip()
-        name  = match.group(2).strip()
+        name = match.group(2).strip()
         participants[name] = title
         
     if len(participants) < 2:
@@ -110,8 +100,7 @@ def segment_by_speaker(text: str, sentences: list) -> dict:
     noise_names = {
         'image source', 'industry glossary', 'read next',
         'full conference call transcript', 'call participants',
-        'takeaways', 'risks', 'summary', 'stocks mentioned'
-    }
+        'takeaways', 'risks', 'summary', 'stocks mentioned'}
 
     turns = []
     for match in speaker_pattern.finditer(text):
@@ -177,14 +166,7 @@ def segment_by_speaker(text: str, sentences: list) -> dict:
         speaker_sentences[active_name].append(sent)
         current_pos = max(current_pos, sent_pos)
 
-    return {
-        'ceo':ceo_sentences,
-        'cfo':cfo_sentences,
-        'qa':qa_sentences,
-        'speaker_sentences': speaker_sentences,
-        'speaker_roles': speaker_roles,
-        'turns':turns
-    }
+    return {'ceo':ceo_sentences,'cfo':cfo_sentences,'qa':qa_sentences,'speaker_sentences': speaker_sentences,'speaker_roles': speaker_roles,'turns':turns}
 
 
 def analyse_transcript_sentiment(text: str, sentences: list, finbert) -> dict:
@@ -216,16 +198,4 @@ def analyse_transcript_sentiment(text: str, sentences: list, finbert) -> dict:
             agg['sentence_count'] = len(sents)
             per_speaker[name]     = agg
 
-    return {
-        'overall':aggregate_sentiment(all_results),
-        'ceo':aggregate_sentiment(ceo_results),
-        'cfo':aggregate_sentiment(cfo_results),
-        'qa':aggregate_sentiment(qa_results),
-        'per_speaker': per_speaker,
-        'speakers':list(segments.get('speaker_sentences',{}).keys()),
-        'segment_sizes': {
-            'ceo': len(segments['ceo']),
-            'cfo': len(segments['cfo']),
-            'qa':  len(segments['qa'])
-        }
-    }
+    return {'overall':aggregate_sentiment(all_results),'ceo':aggregate_sentiment(ceo_results),'cfo':aggregate_sentiment(cfo_results),'qa':aggregate_sentiment(qa_results),'per_speaker': per_speaker,'speakers':list(segments.get('speaker_sentences',{}).keys()),'segment_sizes': {'ceo': len(segments['ceo']),'cfo': len(segments['cfo']),'qa':  len(segments['qa'])}}

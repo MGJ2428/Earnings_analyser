@@ -30,13 +30,10 @@ def extract_ticker_from_url(url: str) -> str | None:
 
 def extract_ticker_from_text(text: str) -> str | None:
     pattern = re.compile(
-        r'\((?:NYSE|NASDAQ|NYSEARCA)?:?\s*([A-Z]{1,5})\s*[+-]?[\d.]*%?\)',
-        re.IGNORECASE
-    )
+        r'\((?:NYSE|NASDAQ|NYSEARCA)?:?\s*([A-Z]{1,5})\s*[+-]?[\d.]*%?\)',re.IGNORECASE)
     
     matches = pattern.findall(text)
     
-    # filter out common false positives
     noise = {'ET', 'AI', 'IT', 'US', 'CEO', 'CFO', 'QA', 'OK'}
     
     for match in matches:
@@ -87,7 +84,7 @@ def run_earnings_analysis(ticker: str, doc) -> dict:
     
 def compare_eps(actual_eps:float, estimated_eps:float) -> dict:
     difference = round(actual_eps-estimated_eps, 2)
-    surprise = round((difference/abs(estimated_eps))*100,2)
+    surprise = round((difference/abs(estimated_eps))*100,2) if estimated_eps != 0 else None
     if actual_eps>estimated_eps:
         verdict='BEAT'
     elif actual_eps<estimated_eps:

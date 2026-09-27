@@ -3,7 +3,15 @@ from pipeline.predicted_earnings_checker import plot_earnings_history, get_past_
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from pipeline.correlation import calculate_correlations, plot_correlation
+from scipy import stats as scipy_stats
+
 st.set_page_config(page_title='Results', layout='wide')
+
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+</style>
+""", unsafe_allow_html=True)
 
 if 'nlp_results' not in st.session_state:
     st.warning('No report analysed.')
@@ -16,12 +24,10 @@ earnings = st.session_state.get('earnings')
 ticker = st.session_state.get('ticker')
 source_url = st.session_state.get('source_url')
 
-st.title('Analysis of Report')
-
-if source_url:
-    st.caption(f'Source: {source_url}')
-if ticker:
-    st.caption(f'Company: {ticker}')
+st.markdown(f"""
+<p style="font-size:12px; color:#86868B; margin:0 0 4px; font-family:'Inter',-apple-system,sans-serif;">{f'Source: {source_url}' if source_url else ''}</p>
+<h1 style="font-size:32px; font-weight:500; letter-spacing:-0.02em; margin:0 0 4px; color:#86868B; font-family:'Inter',-apple-system,sans-serif;">{ticker if ticker else 'Analysis of Report'}</h1>
+""", unsafe_allow_html=True)
 
 st.divider()
 
@@ -52,7 +58,7 @@ st.caption("Powered by FinBERT — fine-tuned on financial text")
 sentiment = st.session_state.get('nlp_results', {}).get('sentiment')
 
 if sentiment:
-    overall = sentiment['overall'].get('overall','0.0')
+    overall = sentiment['overall'].get('overall', 0.0)
     label = sentiment['overall'].get('label', 'neutral')
 
     if overall > 0.1:
@@ -99,7 +105,7 @@ st.divider()
 
 st.subheader('Key Topics')
 st.caption('Discovered using LDA topic modelling')
-topics = st.session_state.get('nlp_results', {}).get('topics',[])
+topics = st.session_state.get('nlp_results', {}).get('topics', [])
 if topics:
     cols=st.columns(len(topics))
     for i , (topic, col) in enumerate(zip(topics, cols)):
@@ -113,15 +119,13 @@ else:
 st.divider()
 
 st.subheader("Forward Guidance")
-key_sentences = st.session_state.get('nlp_results',{}).get('key_sentences',[])
+key_sentences = st.session_state.get('nlp_results', {}).get('key_sentences', [])
 if key_sentences:
     for sentence in key_sentences:
         with st.container(border=True):
             st.write(sentence)
 else:
     st.info("No forward guidance statements found.")
-from pipeline.correlation import calculate_correlations, plot_correlation
-from scipy import stats as scipy_stats
 
 st.divider()
 
@@ -132,9 +136,9 @@ corr = calculate_correlations()
 
 if corr.get('success'):
     col1, col2, col3 = st.columns(3)
-    col1.metric("Overall r",f"{corr['r']:+.2f}")
-    col2.metric("Data points",corr['n'])
-    col3.metric("Significant","Yes" if corr['significant'] else "No",f"p = {corr['p_value']}")
+    col1.metric("Overall r", f"{corr['r']:+.2f}")
+    col2.metric("Data points", corr['n'])
+    col3.metric("Significant", "Yes" if corr['significant'] else "No", f"p = {corr['p_value']}")
 
     if corr.get('beat_r') is not None or corr.get('miss_r') is not None:
         st.markdown("By earnings verdict")
@@ -142,14 +146,14 @@ if corr.get('success'):
         with bc1:
             with st.container(border=True):
                 if corr.get('beat_r') is not None:
-                    st.metric("Beat quarters",f"r = {corr['beat_r']:+.2f}",f"{corr['beat_n']} quarters")
+                    st.metric("Beat quarters", f"r = {corr['beat_r']:+.2f}", f"{corr['beat_n']} quarters")
                     st.caption("Sentiment correlation within beat quarters")
                 else:
                     st.caption("Need 3+ beat quarters")
         with bc2:
             with st.container(border=True):
                 if corr.get('miss_r') is not None:
-                    st.metric("Miss quarters",f"r = {corr['miss_r']:+.2f}",f"{corr['miss_n']} quarters")
+                    st.metric("Miss quarters", f"r = {corr['miss_r']:+.2f}", f"{corr['miss_n']} quarters")
                     st.caption("Sentiment correlation within miss quarters")
                 else:
                     st.caption("Need 3+ miss quarters")
@@ -163,10 +167,10 @@ if corr.get('success'):
     current_ticker = st.session_state.get('ticker')
     current_date = st.session_state.get('call_date')
 
-    fig = plot_correlation(corr['data'],highlight_ticker = current_ticker,highlight_date = current_date)
+    fig = plot_correlation(corr['data'], highlight_ticker=current_ticker, highlight_date=current_date)
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.pyplot(fig, use_container_width=False)
+        st.pyplot(fig, width='content')
 
 else:
     st.info(corr.get('error', 'Not enough data yet.'))
@@ -199,12 +203,12 @@ if past:
     ax.spines['right'].set_visible(False)
     beat_patch = mpatches.Patch(color='#1baf7a', label='Beat')
     miss_patch = mpatches.Patch(color='#e34948', label='Miss')
-    est_patch = mpatches.Patch(color='#2a78d6', label='Analyst estimate')
+    est_patch  = mpatches.Patch(color='#2a78d6', label='Analyst estimate')
     ax.legend(handles=[beat_patch, miss_patch, est_patch], loc='upper left')
     plt.tight_layout()
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.pyplot(fig, use_container_width=False)
+        st.pyplot(fig, width='content')
 else:
     st.info("No earnings history available.")
 
@@ -212,5 +216,3 @@ if st.button("← Analyse another report"):
     for key in ['nlp_results', 'earnings', 'ticker', 'source_url', 'raw_text', 'needs_ticker']:
         st.session_state.pop(key, None)
     st.switch_page("app.py")
-
-
