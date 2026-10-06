@@ -3,8 +3,12 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from .nlp import extract_eps_from_text
+import pandas as pd
+import numpy as np
+
 
 MAJOR_EXCHANGES = {'NMS','NYQ', 'NGM','NCM','ASE'}
+
 
 def score_entities(entities_and_positions: list) -> str | None:
     scores = {}
@@ -43,57 +47,59 @@ def extract_ticker_from_text(text: str) -> str | None:
     
     return None
     
-def get_analyst_estimate(ticker:str) -> dict:
+def get_analyst_estimate(ticker:str, call_date, max_gap_days:int=20) -> dict:
     try:
-        stock = yf.Ticker(ticker)
-        earnings = stock.earnings_history
-        if earnings is None:
-            return {'success' : False, 'error' : 'No estimate data found'}
-        
-        estimated_eps = earnings.iloc[-1]
-
-        return{'success' : True, 'estimated_eps': round(float(estimated_eps['epsEstimate']), 2), 'quarter': str(estimated_eps.name.date())}
+        call_date=pd.Timestamp(call_date).normalize()
+        df=yf.Ticker(ticker).get_earnings_dates(limit=40)
+        if df is None or df.empty:
+            return {'success' : False, 'error' : 'No earnings date data found'}
+        df=df.dropna(subset=['EPS Estimate']).copy()
+        if df.empty:
+            return {'success' : False, 'error' : 'No estimates available'}
+        df.index=df.index.tz_localize(None).normalize()
+        gap_days=np.abs((df.index-call_date).days)
+        best=int(gap_days.argmin())
+        if gap_days[best]>max_gap_days:
+            return {'success' : False, 'error' : f'No report within {max_gap_days} days of {call_date.date()}'}
+        row=df.iloc[best]
+        reported=row.get('Reported EPS')
+        return{'success' : True, 'estimated_eps': round(float(row['EPS Estimate']), 2), 'reported_eps': None if pd.isna(reported) else round(float(reported), 2), 'report_date': str(df.index[best].date())}
     except Exception as e:
         return {'success': False, 'error':str(e)}
     
-def run_earnings_analysis(ticker: str, doc) -> dict:
-    estimate=get_analyst_estimate(ticker)
+def run_earnings_analysis(ticker: str, doc, call_date) -> dict:
+    estimate=get_analyst_estimate(ticker, call_date)
     if not estimate['success']:
         return{'success':False, 'error': estimate['error']}
-    actual_eps=extract_eps_from_text(doc)
-
-    if actual_eps is None:
-        try:
-            stock=yf.Ticker(ticker)
-            earnings = stock.earnings_history
-            recent=earnings.iloc[-1]
-            actual_eps=round(float(recent['epsActual']),2)
-            source = 'yfinance'
-        except Exception:
-            return {'success':False, 'error': 'Could not extract earnings'}
+    if call_date is None:
+        return {'success' : False, 'error' : 'No call date found in URL'}
+    nlp_eps=extract_eps_from_text(doc)
+    if estimate['reported_eps'] is not None:
+        actual_eps=estimate['reported_eps']
+        source='yfinance'
+    elif nlp_eps is not None:
+        actual_eps=nlp_eps
+        source='NLP extraction'
     else:
-        source= 'NLP extraction'
-    
+        return {'success':False, 'error': 'Could not determine actual EPS'}
     comparison = compare_eps(actual_eps , estimate['estimated_eps'])
     comparison['success']=True
     comparison['ticker']=ticker
-    comparison['quarter']=estimate['quarter']
+    comparison['report_date']=estimate['report_date']
     comparison['source'] = source
+    comparison['nlp_eps'] = nlp_eps
+    comparison['basis_mismatch'] = nlp_eps is not None and abs(nlp_eps-actual_eps)>0.05
     return comparison
 
     
 def compare_eps(actual_eps:float, estimated_eps:float) -> dict:
     difference = round(actual_eps-estimated_eps, 2)
     surprise = round((difference/abs(estimated_eps))*100,2) if estimated_eps != 0 else None
-    if actual_eps>estimated_eps:
+    if actual_eps>=estimated_eps:
         verdict='BEAT'
     elif actual_eps<estimated_eps:
         verdict='MISS'
-    else:
-        verdict='MET'
-    return {'verdict': verdict, 'surprise': surprise, 'actual_eps':    actual_eps,
-        'estimated_eps': estimated_eps,
-        'difference':    difference}
+    return {'verdict': verdict,'surprise': surprise,'actual_eps': actual_eps,'estimated_eps': estimated_eps, 'difference': difference}
 
 
 def get_past_all_earnings(ticker: str) -> dict:
@@ -130,7 +136,7 @@ def plot_earnings_history(earnings):
     ax.spines['right'].set_visible(False)
     beat_patch = mpatches.Patch(color='#1baf7a', label='Beat')
     miss_patch = mpatches.Patch(color='#e34948', label='Miss')
-    est_line   = mpatches.Patch(color='#2a78d6', label='Analyst estimate')
+    est_line = mpatches.Patch(color='#2a78d6', label='Analyst estimate')
     ax.legend(handles=[beat_patch, miss_patch, est_line], loc='upper left')
     plt.tight_layout()
     return fx

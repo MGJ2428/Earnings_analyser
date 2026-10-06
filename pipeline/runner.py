@@ -15,6 +15,7 @@ from pipeline.extracter import extract_text
 from pipeline.nlp import process_text
 from pipeline.predicted_earnings_checker import extract_ticker_from_text, run_earnings_analysis, get_past_all_earnings,extract_ticker_from_url
 from pipeline.topics import extract_topics
+from pipeline.correlation import extract_date_from_url
 
 url = {json.dumps(url)}
 
@@ -37,8 +38,9 @@ if not ticker:
     print(json.dumps({{'success': False, 'needs_ticker': True, 'raw_text': text[:5000]}}))
     sys.exit()
 topics = extract_topics(nlp_results['tokens'], company_name=ticker.lower())
+call_date=extract_date_from_url(url)
 
-earnings = run_earnings_analysis(ticker, nlp_results['doc'])
+earnings = run_earnings_analysis(ticker, nlp_results['doc'], call_date)
 
 past = get_past_all_earnings(ticker)
 if past['success']:
@@ -47,7 +49,7 @@ if past['success']:
 else:
     past_earnings = None
 
-output = {{'success':True,'ticker':ticker,'earnings': earnings,'past_earnings': past_earnings,'sentences': nlp_results['sentences'][:400],'word_count': nlp_results['word_count'],'sentence_count':nlp_results['sentence_count'],'key_sentences': nlp_results['key_sentences'],'entities':[(e[0], e[1]) for e in nlp_results['entities']],'raw_text':nlp_results['raw_text'],'topics':topics}}
+output = {{'success':True,'ticker':ticker,'earnings': earnings,'past_earnings': past_earnings,'sentences': nlp_results['sentences'][:800],'word_count': nlp_results['word_count'],'sentence_count':nlp_results['sentence_count'],'key_sentences': nlp_results['key_sentences'],'entities':[(e[0], e[1]) for e in nlp_results['entities']],'raw_text':nlp_results['raw_text'],'topics':topics}}
 
 print(json.dumps(output, separators=(',', ':')))
 """

@@ -57,18 +57,22 @@ def get_post_earnings_return(ticker: str, call_date: str) -> dict:
     except Exception as e:
         return {'success': False, 'error': str(e)}
 
-def store_results(tcker:str, date:str, sentiment_score:float, d1_return: float, d3_return: float, verdict:str) -> None:
+def store_results(ticker: str, date: str, sentiment_score: float,d1_return: float, d3_return: float, verdict: str) -> None:
     file_exists = os.path.exists(data_path) and os.path.getsize(data_path) > 0
     if file_exists:
-        current_data=pd.read_csv(data_path)
-        duplicate=((current_data['ticker']==tcker) & (current_data['date']==date)).any()
-        if duplicate:
+        current = pd.read_csv(data_path, usecols=["ticker", "date"], dtype=str)
+        if ((current["ticker"] == ticker) & (current["date"] == date)).any():
             return
-    with open(data_path, 'a', newline='') as f:
-        writer = csv.DictWriter(f, field_names)
+        with open(data_path, "rb") as f:
+            f.seek(-1, os.SEEK_END)
+            if f.read(1) not in (b"\n", b"\r"):
+                with open(data_path, "a", newline="") as g:
+                    g.write("\n")
+    with open(data_path, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=field_names)
         if not file_exists:
             writer.writeheader()
-        writer.writerow({'ticker':tcker,'date':date,'sentiment_score':sentiment_score,'d1_return':d1_return,'d3_return':d3_return, 'verdict':verdict})
+        writer.writerow({"ticker": ticker, "date": date,"sentiment_score": sentiment_score,"d1_return": d1_return, "d3_return": d3_return,"verdict": verdict})
 
 def calculate_correlations() -> dict:
     if not os.path.exists(data_path):
@@ -83,7 +87,7 @@ def calculate_correlations() -> dict:
     df = df.drop_duplicates(subset=['ticker', 'date'])
 
     if len(df) < 5:
-        return {'success': False,'error':   f'Need at least 5 data points — have only {len(df)} so far','n':len(df)}
+        return {'success': False,'error':f'Need at least 5 data points — have only {len(df)} so far','n':len(df)}
     r, p_value = stats.pearsonr(df['sentiment_score'], df['d3_return'])
 
     beat_r = beat_n = miss_r = miss_n = None

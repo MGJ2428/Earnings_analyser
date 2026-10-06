@@ -13,8 +13,10 @@ st.set_page_config(page_title="Earnings Analyser", layout='wide')
 def load_finbert():
     os.environ['TRANSFORMERS_VERBOSITY'] = 'error'
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    os.environ['HF_HOME'] = os.path.join(base_dir, '.hf_cache')
+    os.environ['HF_HOME'] = '/Users/mayankjagadish/Desktop/Earnings_analyser/.hf_cache'
+    from transformers import pipeline
+    model = pipeline("sentiment-analysis",model="ProsusAI/finbert",tokenizer="ProsusAI/finbert",max_length=512,truncation=True)
+    return model
 
 finbert = load_finbert()
 
@@ -60,11 +62,7 @@ with col_left:
                         st.write("returncode:", result.get('returncode'))
                 else:
                     with st.spinner("Running sentiment analysis..."):
-                        sentiment = analyse_transcript_sentiment(
-                            result.get('raw_text', ''),
-                            result.get('sentences', []),
-                            finbert
-                        )
+                        sentiment = analyse_transcript_sentiment(result.get('raw_text', ''),result.get('sentences', []),finbert)
                     nlp_data = {
                         'sentiment':sentiment,
                         'word_count':result.get('word_count', 0),
@@ -81,7 +79,7 @@ with col_left:
                         if call_date and result['ticker']:
                             returns=get_post_earnings_return(result['ticker'], call_date)
                             if returns['success']:
-                                store_results(tcker=result['ticker'],date=call_date, sentiment_score=sentiment.get('overall', {}).get('overall', 0.0), d1_return=returns['d1_return'], d3_return=returns['d3_return'],verdict=result.get('earnings', {}).get('verdict', 'UNKNOWN'))
+                                store_results(ticker=result['ticker'],date=call_date, sentiment_score=sentiment.get('overall', {}).get('overall', 0.0), d1_return=returns['d1_return'], d3_return=returns['d3_return'],verdict=result.get('earnings', {}).get('verdict', 'UNKNOWN'))
 
                     st.session_state['ticker'] = result['ticker']
                     st.session_state['earnings'] = result['earnings']

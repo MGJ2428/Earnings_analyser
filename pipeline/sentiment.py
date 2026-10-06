@@ -1,10 +1,15 @@
 import re
 
+def clean_sentence(sent: str) -> str:
+    sent = re.sub(r'^[A-Z][a-zA-Z\s\.\-]+--[A-Za-z\s\.\,]+\n', '', sent)
+    sent = re.sub(r'^[A-Z][a-zA-Z\s\.\-]+:\s*\n', '', sent)
+    return sent.strip()
 
 def score_sentences(sentences: list, finbert) -> list[dict]:
     if not sentences:
         return []
-    valid = [s for s in sentences if len(s.split()) > 5]
+    cleaned = [clean_sentence(s) for s in sentences]
+    valid = [s for s in cleaned if len(s.split()) > 5]
     valid = [s[:1000] for s in valid]
     if not valid:
         return []
@@ -18,7 +23,6 @@ def score_sentences(sentences: list, finbert) -> list[dict]:
         except Exception:
             continue
     return results
-
 
 def aggregate_sentiment(results: list[dict]) -> dict:
     if not results:
@@ -85,55 +89,88 @@ def extract_speakers_from_intro(text: str) -> dict:
 def segment_by_speaker(text: str, sentences: list) -> dict:
     speaker_pattern = re.compile(r'^([A-Z][a-zA-Z\s\.\-]{3,40}):\s', re.MULTILINE)
     participant_pattern = re.compile(r'-\s*([^—\-\n]+?)\s*[—\-]\s*([^\n]+)', re.MULTILINE)
+    speaker_pattern_dash = re.compile(r'^([A-Z][a-zA-Z\s\.\-]{2,40}?)\s+--\s+([A-Za-z\s\.\,]{3,60})$', re.MULTILINE)
 
     participants = {}
     for match in participant_pattern.finditer(text[:3000]):
         title = match.group(1).strip()
         name = match.group(2).strip()
         participants[name] = title
-        
+
     if len(participants) < 2:
         intro_speakers = extract_speakers_from_intro(text)
         for name in intro_speakers:
             if name not in participants:
                 participants[name] = ''
+
     noise_names = {
         'image source', 'industry glossary', 'read next',
         'full conference call transcript', 'call participants',
         'takeaways', 'risks', 'summary', 'stocks mentioned'}
 
+    plain_matches = list(speaker_pattern.finditer(text))
+    dash_matches  = list(speaker_pattern_dash.finditer(text))
+    use_dash = len(dash_matches) > len(plain_matches)
+
     turns = []
-    for match in speaker_pattern.finditer(text):
-        name = match.group(1).strip()
-        if '\n' in name:
-            continue
-        if name.lower() in noise_names:
-            continue
-        if len(name.split()) > 5:
-            continue
-        pos = match.start()
-        title = ''
-        for p_name, p_title in participants.items():
-            p_last = p_name.strip().split()[-1].lower()
-            s_last = name.strip().split()[-1].lower()
-            if (name.lower() in p_name.lower() or p_name.lower() in name.lower() or s_last == p_last):
-                title = p_title
-                break
-        title_lower = title.lower()
-        name_lower  = name.lower()
-        if any(t in title_lower for t in ['chief executive', 'ceo', 'president', 'incoming']):
-            role = 'ceo'
-        elif any(t in title_lower for t in ['chief financial officer', 'cfo', 'finance']):
-            role = 'cfo'
-        elif 'operator' in name_lower:
-            role = 'operator'
-        elif 'investor relations' in title_lower or 'director' in title_lower:
-            role = 'ir'
-        elif any(t in title_lower for t in ['analyst', 'research', 'securities', 'capital', 'bank']):
-            role = 'analyst'
-        else:
-            role = 'other'
-        turns.append({'name': name, 'title': title, 'role': role, 'pos': pos})
+
+    if use_dash:
+        # older format
+        for match in dash_matches:
+            name  = match.group(1).strip()
+            title = match.group(2).strip()
+            pos = match.start()
+
+            if name.lower() in noise_names or len(name.split()) > 5:
+                continue
+
+            title_lower = title.lower()
+            name_lower= name.lower()
+
+            if any(t in title_lower for t in ['chief executive', 'ceo', 'president']):
+                role = 'ceo'
+            elif any(t in title_lower for t in ['chief financial', 'cfo']):
+                role = 'cfo'
+            elif 'operator' in name_lower:
+                role = 'operator'
+            elif any(t in title_lower for t in ['investor relations', 'director']):
+                role = 'ir'
+            elif any(t in title_lower for t in ['analyst', 'research', 'securities', 'capital', 'bank', 'llc', 'llp']):
+                role = 'analyst'
+            else:
+                role = 'other'
+
+            turns.append({'name': name, 'title': title, 'role': role, 'pos': pos})
+
+    else:
+        # newer format
+        for match in plain_matches:
+            name = match.group(1).strip()
+            if '\n' in name or name.lower() in noise_names or len(name.split()) > 5:
+                continue
+            pos   = match.start()
+            title = ''
+            for p_name, p_title in participants.items():
+                p_last = p_name.strip().split()[-1].lower()
+                s_last = name.strip().split()[-1].lower()
+                if (name.lower() in p_name.lower() or p_name.lower() in name.lower() or s_last == p_last):
+                    title = p_title
+                    break
+            title_lower = title.lower()
+            name_lower  = name.lower()
+            if any(t in title_lower for t in ['chief executive', 'ceo', 'president', 'incoming']):
+                role = 'ceo'
+            elif any(t in title_lower for t in ['chief financial officer', 'cfo', 'finance']):
+                role = 'cfo'
+            elif 'operator' in name_lower:
+                role = 'operator'
+            elif any(t in title_lower for t in ['investor relations', 'director']):
+                role = 'ir'
+            elif any(t in title_lower for t in ['analyst', 'research', 'securities', 'capital', 'bank']):
+                role = 'analyst'
+            else:
+                role = 'other'
+            turns.append({'name': name, 'title': title, 'role': role, 'pos': pos})
 
     ceo_sentences = []
     cfo_sentences = []
@@ -162,11 +199,11 @@ def segment_by_speaker(text: str, sentences: list) -> dict:
             qa_sentences.append(sent)
         if active_name not in speaker_sentences:
             speaker_sentences[active_name] = []
-            speaker_roles[active_name] = active_role
+            speaker_roles[active_name]= active_role
         speaker_sentences[active_name].append(sent)
         current_pos = max(current_pos, sent_pos)
 
-    return {'ceo':ceo_sentences,'cfo':cfo_sentences,'qa':qa_sentences,'speaker_sentences': speaker_sentences,'speaker_roles': speaker_roles,'turns':turns}
+    return {'ceo':ceo_sentences,'cfo':cfo_sentences,'qa':qa_sentences,'speaker_sentences':speaker_sentences,'speaker_roles':speaker_roles,'turns':turns}
 
 
 def analyse_transcript_sentiment(text: str, sentences: list, finbert) -> dict:
@@ -176,11 +213,12 @@ def analyse_transcript_sentiment(text: str, sentences: list, finbert) -> dict:
     if not segments['ceo'] and not segments['cfo']:
         segments = segment_transcript(text, sentences)
         fallback = True
-
     ceo_results = score_sentences(segments['ceo'][:30], finbert)
     cfo_results = score_sentences(segments['cfo'][:20], finbert)
-    qa_results  = score_sentences(segments['qa'][:20],  finbert)
-    all_results = score_sentences(sentences[:60],        finbert)
+    qa_results = score_sentences(segments['qa'][:20],  finbert)
+    all_results = ceo_results + cfo_results + qa_results
+    if not all_results:
+        all_results = score_sentences(sentences[:60],finbert)
 
     per_speaker = {}
     if not fallback:
@@ -194,8 +232,8 @@ def analyse_transcript_sentiment(text: str, sentences: list, finbert) -> dict:
                 continue
             results = score_sentences(sents[:20], finbert)
             agg = aggregate_sentiment(results)
-            agg['role']           = role
+            agg['role'] = role
             agg['sentence_count'] = len(sents)
-            per_speaker[name]     = agg
+            per_speaker[name] = agg
 
     return {'overall':aggregate_sentiment(all_results),'ceo':aggregate_sentiment(ceo_results),'cfo':aggregate_sentiment(cfo_results),'qa':aggregate_sentiment(qa_results),'per_speaker': per_speaker,'speakers':list(segments.get('speaker_sentences',{}).keys()),'segment_sizes': {'ceo': len(segments['ceo']),'cfo': len(segments['cfo']),'qa':  len(segments['qa'])}}

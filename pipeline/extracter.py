@@ -10,5 +10,6 @@ def extract_text(html:str) -> tuple[str | None, str | None]:
         tag.decompose()
     text=bs_output.get_text(separator=' ', strip=True)
     if text and len(text)>500:
-        return text, 'Could not extract enough readable text from the page'
+        return text, None
+    return None, 'Could not extract enough readable text from the page'
 
