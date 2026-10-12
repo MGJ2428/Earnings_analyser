@@ -96,7 +96,7 @@ Supports **Motley Fool** transcript URLs only (`fool.com/earnings/call-transcrip
 
 Across 80+ earnings call transcripts spanning 2023–2026:
 
-- Overall Pearson r between CEO sentiment score and 3-day post-earnings return: **−0.76**
+- Overall Pearson r between CEO sentiment score and 3-day post-earnings return: **-0.15**
 - The relationship differs by verdict — positive sentiment in miss quarters shows a stronger negative return effect, consistent with market over-pricing of optimistic management tone
 - FinBERT scores neutral for highly technical CEOs (e.g. Jensen Huang) — a known limitation of models trained primarily on analyst reports rather than executive language
 
