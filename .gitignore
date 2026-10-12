@@ -1,3 +1,4 @@
 venv/
 .hf_cache/
-.streamlit/secrets.toml
+.streamlit/secrets.toml*.pyc
+__pycache__/
